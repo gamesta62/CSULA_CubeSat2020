@@ -73,10 +73,24 @@ time_0 = time.time()
 
 while True:                
 
+
+
+    # (x,y, z) add test values
     marker_found, x, y, z = aruco_tracker.track(loop=False) # Note : XYZ  are all in cm
 
     if marker_found:
+        #rotateCCW()
+        #degree = marker_position_to_angle(x,y,z)
+        #rate = headerControl(degree)
+        #delay_command = rotate_thruster(rate))
+        #sendDelayedCommand(rate)    # inner loop that takes delay(sends 2 commands, 1 before delay and 1 after)
+        # = ^loop delay()
+        #   ^if checkthreshold(x,y,z) == false
+        #       ^sendStop()
+        #=  ^else continue
+        # = send last command
         
+
         angle_x, angle_y    = marker_position_to_angle(x, y, z)
 
         print("X ; ",x)
@@ -90,6 +104,7 @@ while True:
         if z <= distanceGoal:
              print (" -->>Target Distination Reached <<")
     if marker_found is False:
+        # rotateCW()
         print("X: 0")
         print("Y: 0")
         print("Z: 0")
