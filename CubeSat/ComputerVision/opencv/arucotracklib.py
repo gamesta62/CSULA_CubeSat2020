@@ -36,6 +36,8 @@ class ArucoSingleTracker():
 
 
         #--- Capture the videocamera (this may also be a video or a picture)
+        #imgFlip=cv2.flip(frame,-1)
+
         self._cap = cv2.VideoCapture(0)
         #-- Set the camera size as the one it was calibrated with
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, camera_size[0])
@@ -50,8 +52,7 @@ class ArucoSingleTracker():
         self.fps_detect  = 0.0 
 
 
- 
-
+        
     def stop(self):
         self._kill = True
     
@@ -62,7 +63,7 @@ class ArucoSingleTracker():
     # Y  : up/down from camera
     # Z : distance from camera 
     # Returns(boolean,intX,intY,intZ)
-    def track(self, loop=True, verbose=False, show_video=None):
+    def track(self, loop=True, verbose=False, show_video=True):
         
         self._kill = False
         if show_video is None: show_video = self._show_video
@@ -74,7 +75,8 @@ class ArucoSingleTracker():
             
             #-- Read the camera frame
             ret, frame = self._cap.read()
-
+            # frame = cv2.flip(frame,0)
+            # ret = cv2.flip(ret,0)
             
             #-- Convert in gray scale
             gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) #-- remember, OpenCV stores color images in Blue, Green, Red
@@ -141,6 +143,7 @@ class ArucoSingleTracker():
 
             if show_video:
                 #--- Display the frame
+                frame = cv2.flip(frame,0)
                 cv2.imshow('frame', frame)
 
                 #--- use 'q' to quit
@@ -170,29 +173,3 @@ if __name__ == "__main__":
     # aruco_tracker.track(verbose=False)
     print(aruco_tracker.track(verbose=True))
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
