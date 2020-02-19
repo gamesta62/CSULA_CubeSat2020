@@ -3,18 +3,23 @@ from os import sys, path
 import time
 import math
 import argparse
+
+# Adding socket stuff---------------------
+'''
+import socket
+sock = socket.socket()
+ip = ''
+port = 0
+sock.connect(ip, port)
+'''
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
-
 # from opencv.lib_aruco_pose import *
-from opencv.arucotracklib import *
-
-
+from arucotracklib import *
 
 #--------------------------------------------------
 #-------------- FUNCTIONS  
 #--------------------------------------------------    
-
 
 #Goal of this navigation is to have CubeSat Rotate a degree/ angle; with the goal of 
 # having the target aligned in its center before thrusting toward target.
@@ -39,7 +44,11 @@ thrustDic = {'Stop': ['0000 0000'],
              'CounterClockWise' : ['0101 0101'],
              'ClockWise' : ['1010 1010']}
 
+# Testing only 
 full360inSeconds = 4.0
+# dist_in_seconds = 3.0 # Travel 10 cms in 3 seconds
+rate = 10/3.0
+distanceGoal    = 10.0
 
 def marker_position_to_angle(x, y, z):
     
@@ -92,8 +101,11 @@ def headerControl(degree):
     seconds = calcDegreeRate(degree, full360inSeconds)
     print(f'Rotation: {thrustCommand}')
     print(f'seconds: {seconds}')
-    return thrustCommand  # , seconds
+    return thrustCommand, seconds
 
+def calcDistTime(currentZ):
+    z_difference = currentZ - distanceGoal
+    return z_difference/rate
 
 def velocityControl(dist):
     if dist > distanceGoal:
@@ -101,15 +113,44 @@ def velocityControl(dist):
     if dist <= distanceGoal:
         delayCommand = 'Stop'
 
-    return delayCommand
+    return delayCommand, calcDistTime(dist)
+
+def sendCommand(command):
+    # Socket not set up, but this is the command to send 
+    # sock.send(ThrustDic[command].encode())
+    
+    print(f'Command: {command}')
+    return thrustDic[command]
 
 
-def sendDelayedCommand(delayCommand):
-    print("send thruster command to SimPlat")
-    thruster = ['0000 0000']
-    # Basic Motions
+def sendDelayedCommand(command, timer=0):    # Sends command, waits, sends reverse command
+    sendCommand(command)
+    
+    start = time.time()
+    while True:
+        if time.time() - start < timer:
+            break
+    
+    sendCommand(reverseCommand(command))
 
-    return thrustDic[delayCommand]
+def reverseCommand(command):
+    reverse = ''
+    
+    if command == 'Left':
+        reverse = 'Right'
+    if command == 'Right':
+        reverse = 'Left'
+    if command == 'Forward':
+        reverse = 'Backward'
+    if command == 'Backward':
+        reverse = 'Forward'
+    if command == 'CounterClockWise':
+        reverse = 'ClockWise'
+    if command == 'ClockWise':
+        reverse = 'CounterClockWise'
+    if command == 'Stop':
+        reverse = 'Stop'
+    return reverse
 #--------------------------------------------------
 #-------------- CONNECTION  
 #--------------------------------------------------    
@@ -125,10 +166,6 @@ print('Connecting...')
 id_to_find      = 24
 marker_size     = 10 #- [cm]
 
-distanceGoal        = 50.0
-
-
-
 #--- Get the camera calibration path
 # Find full directory path of this script, used for loading config and other files
 cwd                 = path.dirname(path.abspath(__file__))
@@ -138,40 +175,18 @@ camera_distortion   = np.loadtxt('cameraDistortion_raspi.txt', delimiter=',')
 aruco_tracker       = ArucoSingleTracker(id_to_find=id_to_find, marker_size=marker_size, show_video=False, 
                 camera_matrix=camera_matrix, camera_distortion=camera_distortion)
                 
-                
 time_0 = time.time()
 
-list = [0,0,0]
-
 while True:                
-
-
 
     # (x,y, z) add test values
     marker_found, x, y, z = aruco_tracker.track(loop=False) # Note : XYZ  are all in cm
 
     if marker_found:
-        #rotateCCW()
-        #degree = marker_position_to_angle(x,y,z)
-        #rate = headerControl(degree)
-        #delay_command = rotate_thruster(rate))
-        #sendDelayedCommand(rate)    # inner loop that takes delay(sends 2 commands, 1 before delay and 1 after)
-        # = ^loop delay()
-        #   ^if checkthreshold(x,y,z) == false
-        #       ^sendStop()
-        #=  ^else continue
-        # = send last command
-        
-
         angle_x, angle_y    = marker_position_to_angle(x, y, z)
 
-        #print("X ; ",x)
-        #print("Y ; ",y)
-        #print("Z ; ",z)
-        #print("angleX : ",angle_x)
-        #print("angleY : ",angle_y)
-
-        angle_x, angle_y = marker_position_to_angle(x, y, z)
+        # print(f'X:{x} Y:{y}, Z:{z}, angleX:{angle_x}')
+        angle_x, angle_y    = marker_position_to_angle(x, y, z)
         secondsToRotate = calcDegreeRate(angle_x, full360inSeconds)
         withinCenter = checkCenterTreshhold(x)
         withinDistance = checkDistanceThreshhold(z)
@@ -179,23 +194,24 @@ while True:
         if withinCenter is False and withinDistance is False:
             # if both checks fail meaning the distance is larger than the goal and the target is not within center threshold
             print('outside of center threshold and distance threshold')
-            delayed = velocityControl(z)
+            delayed, seconds = velocityControl(z)
         elif withinCenter is True and withinDistance is False:
             # the target is within center threshold but is outside distance goal
             print('target within center threshold but outside distance goal')
-            delayed = velocityControl(z)
+            delayed, seconds = velocityControl(z)
         elif withinCenter is False and withinDistance is True:
             # target is within distance goal but not within center threshold
             print('target within distance goal but outside center threshold')
-            delayed = headerControl(angle_x)
+            delayed, seconds = headerControl(angle_x)
         elif withinDistance is True and withinCenter is True:
             # do nothing
             print('do nothing')
             delayed = 'Stop'
+            seconds = 0
 
-        command = sendDelayedCommand(delayed)
+        command = sendDelayedCommand(delayed, seconds)
         print(f'command: {command}')
-        time.sleep(1)
+        #time.sleep(1)
 
         #--- COmmand to land
         if z <= distanceGoal:
@@ -207,5 +223,5 @@ while True:
         print("Y: 0")
         print("Z: 0")
         print("rotate until find !")
-        time.sleep(1)
+        #time.sleep(1)
             
