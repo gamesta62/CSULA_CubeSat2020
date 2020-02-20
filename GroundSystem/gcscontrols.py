@@ -1,16 +1,27 @@
 from flask import Flask, render_template, request
 import argparse
 
+import socket
 
 app = Flask(__name__)
+# add socket connection to simPat
 
+# 
+
+
+s = socket.socket()
+s.connect(('127.0.0.1',12345))
 
 @app.route("/", methods=['GET', 'POST'])
+
+
 def index():
     print(request.method)
+  
     if request.method == 'POST':
         if request.form.get('Forward') == 'Forward':
                 # pass
+            # add bittarray to send
             print("Forward")
         elif  request.form.get('Reverse') == 'Reverse':
             # pass # do something else
@@ -18,6 +29,7 @@ def index():
         elif  request.form.get('Left') == 'Left':
             # pass # do something else
            print("Left")
+
         elif  request.form.get('Right') == 'Right':
             # pass # do something else
            print("Right")
@@ -53,3 +65,5 @@ if __name__ == '__main__':
 
     app.run(host=args["ip"], port=args["port"], debug=True,
 		threaded=True, use_reloader=False)
+    s.send(str.encode());
+    str = input("S: ")
