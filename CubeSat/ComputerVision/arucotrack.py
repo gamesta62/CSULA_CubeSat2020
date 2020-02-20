@@ -138,8 +138,8 @@ class ArucoTracker():
                 z = tvec[2]
 
                 #-- Draw the detected marker and put a reference frame over it
-                aruco.drawDetectedMarkers(frame, corners)
-                aruco.drawAxis(frame, self._camera_matrix, self._camera_distortion, rvec, tvec, 10)
+                drawnmarker = aruco.drawDetectedMarkers(frame, corners)
+                drawAxis   = aruco.drawAxis(frame, self._camera_matrix, self._camera_distortion, rvec, tvec, 10)
 
                 #-- Obtain the rotation matrix tag->camera
                 R_ct    = np.matrix(cv2.Rodrigues(rvec)[0])

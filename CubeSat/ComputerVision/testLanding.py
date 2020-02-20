@@ -76,7 +76,8 @@ while True:
 
 
     # (x,y, z) add test values
-    marker_found, x, y, z = aruco_tracker.track(loop=False) # Note : XYZ  are all in cm
+    marker_found, x, y, z = aruco_tracker.track(loop=True) # Note : XYZ  are all in cm
+    testValues = [10,5,20]
 
     if marker_found:
         #rotateCCW()
