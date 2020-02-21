@@ -9,23 +9,33 @@ app = Flask(__name__)
 # 
 
 
-s = socket.socket()
-s.connect(('127.0.0.1',12345))
+# s = socket.socket()
+# s.connect(('127.0.0.1',12345))
 
 @app.route("/", methods=['GET', 'POST'])
 
 
 def index():
     print(request.method)
+    s = socket.socket()
+    s.connect(('127.0.0.1',12345))
+    # str = input("S: ")
+    # s.send(str.encode());
+
   
     if request.method == 'POST':
         if request.form.get('Forward') == 'Forward':
+            message = "forward "
+            s.send(message.encode());
+
                 # pass
             # add bittarray to send
             print("Forward")
         elif  request.form.get('Reverse') == 'Reverse':
             # pass # do something else
-           print("Reverse")
+            message = "reverse "
+            s.send(message.encode());
+            print("Reverse")
         elif  request.form.get('Left') == 'Left':
             # pass # do something else
            print("Left")

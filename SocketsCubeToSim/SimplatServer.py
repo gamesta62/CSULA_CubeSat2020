@@ -10,6 +10,8 @@ while True:
     rcvdData = c.recv(1024).decode()
     print ("S:",rcvdData)
     sendData = input("N: ")
+
+    # sendData = rcvdData
     c.send(sendData.encode())
     if(sendData == "Bye" or sendData == "bye"):
         break

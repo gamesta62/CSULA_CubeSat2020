@@ -7,5 +7,5 @@ while True:
     s.send(str.encode());
     if(str == "Bye" or str == "bye"):
         break
-    print ("N:",s.recv(1024).decode())
+    print ("N: received",s.recv(1024).decode())
 s.close()
