@@ -75,5 +75,5 @@ if __name__ == '__main__':
 
     app.run(host=args["ip"], port=args["port"], debug=True,
 		threaded=True, use_reloader=False)
-    s.send(str.encode());
-    str = input("S: ")
+    # s.send(str.encode());
+    # str = input("S: ")
