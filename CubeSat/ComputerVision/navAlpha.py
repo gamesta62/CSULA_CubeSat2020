@@ -5,13 +5,13 @@ import math
 import argparse
 
 # Adding socket stuff---------------------
-'''
+
 import socket
 sock = socket.socket()
-ip = ''
-port = 0
-sock.connect(ip, port)
-'''
+ip = '127.0.0.1'
+port = 12345
+#sock.connect((ip, port))
+
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
 # from opencv.lib_aruco_pose import *
@@ -33,22 +33,22 @@ from arucotracklib import *
 
 # XYZ -> Angle-> Rotate(angle) ->computeRotateTime(angel) ->startRotate(seconds )
 
-thrustDic = {'Stop': ['0000 0000'],
-             'Left': ['0110 0000'],
-             'Right': ['0000 0110'],
-             'Forward': ['0001 1000'],
-             'Backward': ['1000 0001'],
-             'UpperRightDiagonal': ['0001 1110'],
-             'UpperLeftDiagonal' : ['0111 1000'],
-             'BottomRightDiagonal' : ['1000 0111'],
-             'CounterClockWise' : ['0101 0101'],
-             'ClockWise' : ['1010 1010']}
+thrustDic = {'Stop': '00000000',
+             'Left': '01100000',
+             'Right': '00000110',
+             'Forward': '00011000',
+             'Backward': '10000001',
+             'UpperRightDiagonal': '00011110',
+             'UpperLeftDiagonal' : '01111000',
+             'BottomRightDiagonal' : '10000111',
+             'CounterClockWise' : '01010101',
+             'ClockWise' : '10101010'}
 
 # Testing only 
 full360inSeconds = 4.0
 # dist_in_seconds = 3.0 # Travel 10 cms in 3 seconds
 rate = 10/3.0
-distanceGoal    = 10.0
+distanceGoal    = 20.0
 
 def marker_position_to_angle(x, y, z):
     
@@ -90,9 +90,9 @@ def checkDistanceThreshhold(currentZ):
 def headerControl(degree):
     # if the degree is negative, that means the target is to the left of CubeSat so a clockwise rotation is neccessary,
     # else if the degree is positive, the target is to the right of CubeSat so a counter-clockwise rotation is needed
-    if degree < 0:
+    if degree > 0:
         thrustCommand = 'ClockWise'
-    elif degree > 0:
+    elif degree < 0:
         thrustCommand = 'CounterClockWise'
     else:
         # print("Stop")'
@@ -101,7 +101,7 @@ def headerControl(degree):
     seconds = calcDegreeRate(degree, full360inSeconds)
     print(f'Rotation: {thrustCommand}')
     print(f'seconds: {seconds}')
-    return thrustCommand, seconds
+    return thrustCommand, abs(seconds)
 
 def calcDistTime(currentZ):
     z_difference = currentZ - distanceGoal
@@ -124,31 +124,33 @@ def sendCommand(command):
 
 
 def sendDelayedCommand(command, timer=0):    # Sends command, waits, sends reverse command
-    sendCommand(command)
-    
+    com = sendCommand(command)
+    #sock.send(com.encode())
     start = time.time()
     while True:
         if time.time() - start < timer:
             break
-    
-    sendCommand(reverseCommand(command))
+        elif timer == 0:
+            break
+    com = sendCommand(reverseCommand(command))
+    #sock.send(com.encode())
 
 def reverseCommand(command):
     reverse = ''
     
     if command == 'Left':
         reverse = 'Right'
-    if command == 'Right':
+    elif command == 'Right':
         reverse = 'Left'
-    if command == 'Forward':
+    elif command == 'Forward':
         reverse = 'Backward'
-    if command == 'Backward':
+    elif command == 'Backward':
         reverse = 'Forward'
-    if command == 'CounterClockWise':
+    elif command == 'CounterClockWise':
         reverse = 'ClockWise'
-    if command == 'ClockWise':
+    elif command == 'ClockWise':
         reverse = 'CounterClockWise'
-    if command == 'Stop':
+    elif command == 'Stop':
         reverse = 'Stop'
     return reverse
 #--------------------------------------------------
@@ -194,7 +196,7 @@ while True:
         if withinCenter is False and withinDistance is False:
             # if both checks fail meaning the distance is larger than the goal and the target is not within center threshold
             print('outside of center threshold and distance threshold')
-            delayed, seconds = velocityControl(z)
+            delayed, seconds = headerControl(angle_x)
         elif withinCenter is True and withinDistance is False:
             # the target is within center threshold but is outside distance goal
             print('target within center threshold but outside distance goal')
