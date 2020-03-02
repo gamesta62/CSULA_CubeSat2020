@@ -36,7 +36,8 @@ time_0 = time.time()
 if __name__ == "__main__":
 
     while True:                
-        marker_found, x, y, z = aruco_tracker.track(loop=False) # Note : XYZ  are all in cm
+        # marker_found, x, y, z = aruco_tracker.track(loop=False) # Note : XYZ  are all in cm
+        marker_found, x, y, z = True,0,0,20# Note : XYZ  are all in cm
 
         if marker_found:
             if time.time() >= time_0 + 1.0/freq_send:
@@ -45,7 +46,7 @@ if __name__ == "__main__":
                 print("x , y , z ",x,y,z)
                 
 
-            if z_cm <= 10.0:
+            if z <= 10.0:
                 print (" -->>COMMANDING TO LAND<<")
 
         else :

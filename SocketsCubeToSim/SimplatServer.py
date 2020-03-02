@@ -9,7 +9,7 @@ print ("Socket Up and running with a connection from",addr)
 while True:
     rcvdData = c.recv(1024).decode()
     print ("S:",rcvdData)
-    sendData = input("N: ")
+    sendData = rcvdData
 
     # sendData = rcvdData
     c.send(sendData.encode())
