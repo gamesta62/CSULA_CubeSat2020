@@ -9,15 +9,15 @@ import socket
 
 sock = socket.socket()
 # ip = '127.0.0.1'
-# ip = '192.168.43.209' #SimPlat ip
-ip = '192.168.1.23' #simplat ip at jonathan ung's house
+ip = '192.168.43.209' #SimPlat ip
+# ip = '192.168.1.23' #simplat ip at jonathan ung's house
 port = 12345
-sock.connect((ip, port))
+#sock.connect((ip, port))
 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
 # from opencv.lib_aruco_pose import *
-from opencv.arucotracklib import *
+from arucotracklib import *
 
 # --------------------------------------------------
 # -------------- FUNCTIONS
@@ -54,7 +54,7 @@ reverseDic = {'Stop': 'Stop',
               'CounterClockWise': 'ClockWise',
               'ClockWise': 'CounterClockWise'}
 
-distanceGoal = 25.0
+distanceGoal = 30.0
 
 def marker_position_to_angle(x, y, z):
     angle_x = math.degrees(math.atan2(x, z))
@@ -64,17 +64,19 @@ def marker_position_to_angle(x, y, z):
 
 
 def initialSearch():
-    marker_found, x, y, z = aruco_tracker.track(loop=False)
-    if marker_found is False:
-        initialSearch()
+    while True:
+        marker_found, x, y, z = aruco_tracker.track(loop=False)
+        if marker_found is True:
+           sock.send(sendCommand('Stop').encode())
+           break
     return
 
 def checkCenterTreshhold(currentX):
     # function takes in the current x value from the camera and checks to see if the target is near the the center threshhold of the camera
     # if the target is outside the thresh hold, return false. if the target is within center thresh hold, return true
     # change min and max value as neccessary to change threshold
-    minX = -3.0
-    maxX = 3.0
+    minX = -20.0
+    maxX = 20.0
     if currentX < minX or currentX > maxX:
         return False
     return True
@@ -98,17 +100,18 @@ def headerControl(degree):
     else:
         # print("Stop")'
         thrustCommand = 'Stop'
-    # print(thrustCommand)
-    print(f'Rotation: {thrustCommand}')
-    return thrustCommand  # , abs(seconds)
+
+    return thrustCommand
 
 
-def headerHelper():
+def headerHelper(command):
     #recursion function to loop until the threshold is satisfied
-    marker_found, x, y, z = aruco_tracker.track(loop=False)
-    checker = checkCenterTreshhold(x)
-    if checker is False:
-        headerHelper()
+    while True:
+        marker_found, x, y, z = aruco_tracker.track(loop=False)
+        checker = checkCenterTreshhold(x)
+        if checker is True:
+#            sock.send(sendCommand(reverseCommand(command)).encode())
+            break
     return
 
 def velocityControl(dist):
@@ -121,13 +124,11 @@ def velocityControl(dist):
 
 def velocityHelper():
     #recursion function that keeps forward command going until either target is off center or cubesat is within distance
-    marker_found, x, y, z = aruco_tracker.track(loop=False)
-    checker = checkDistanceThreshhold(z)
-    check = checkCenterTreshhold(x)
-    if check is False:
-        return
-    if checker is False:
-        velocityHelper()
+    while True:
+        marker_found, x, y, z = aruco_tracker.track(loop=False)
+        checker = checkDistanceThreshhold(z)
+        if checker is True:
+           break
     return
 
 def sendCommand(command):
@@ -170,6 +171,7 @@ while True:
     marker_found, x, y, z = aruco_tracker.track(loop=False)  # Note : XYZ  are all in cm
     x = -x
 
+    print(f'taget found? {marker_found}')
     if marker_found:
         angle_x, angle_y = marker_position_to_angle(x, y, z)
 
@@ -182,48 +184,50 @@ while True:
             # if both checks fail meaning the distance is larger than the goal and the target is not within center threshold
             print('outside of center threshold and distance threshold')
             delayed = headerControl(angle_x)
-            #sends rotation command first, enters loop until target is recentered, then sends counterthrust
-            sock.send(sendCommand(delayed).encode())
-            headerHelper()
-            sock.send(sendCommand(reverseCommand(delayed)).encode())
-
+            #sends rotation command first, enters loop until target is recentered, then sends counterthrust            sock.send(sendCommand(delayed).encode())
+#            response = sock.recv(1024).decode()
+#            if response != sendCommand(delayed):
+#                sock.send(sendCommand(delayed).encode())
+            headerHelper(delayed)
+#            sock.send(sendCommand(reverseCommand(delayed)).encode())
+            time.sleep(0.5)
         elif withinCenter is True and withinDistance is False:
             # the target is within center threshold but is outside distance goal
             print('target within center threshold but outside distance goal')
             delayed = velocityControl(z)
             #sends forward thrust, loops until either target is off center or target is within distance, then sends backward thrust
-            sock.send(sendCommand(delayed).encode())
+#            sock.send(sendCommand(delayed).encode())
+#            response = sock.recv(1024).decode()
+#            if response != sendCommand(delayed):
+#                sock.send(sendCommand(delayed).encode())
             velocityHelper()
-            sock.send(sendCommand(reverseCommand(delayed)).encode())
+#            time.sleep(4)
+#            sock.send(sendCommand(reverseCommand(delayed)).encode())
+            time.sleep(0.5)
         elif withinCenter is False and withinDistance is True:
             # target is within distance goal but not within center threshold
             print('target within distance goal but outside center threshold')
             delayed = headerControl(angle_x)
             # sends rotation command first, enters loop until target is recentered, then sends counterthrust
             sock.send(sendCommand(delayed).encode())
-            headerHelper()
-            sock.send(sendCommand(reverseCommand(delayed)).encode())
+#            response = sock.recv(1024).decode()
+#            if response != sendCommand(delayed):
+#                sock.send(sendCommand(delayed).encode())
+            headerHelper(delayed)
+#            sock.send(sendCommand(reverseCommand(delayed)).encode())
+            time.sleep(0.5)
         elif withinDistance is True and withinCenter is True:
             # to do: figure out what to do when everything is perfect
             print('do nothing')
-            sock.send(sendCommand('Stop').encode())
-            delayed = 'Stop'
-            seconds = 0
-
-        # command = sendDelayedCommand(delayed, seconds)
-        # print(f'command: {command}')
-        # time.sleep(1)
+            
 
         # --- COmmand to land
         if z <= distanceGoal:
             print(" -->>Target Distination Reached <<")
 
     if marker_found is False:
-        sock.send(sendCommand('Stop').encode())
-        time.sleep(1)
-        sock.send(sendCommand('ClockWise').encode())
+#        sock.send(sendCommand('ClockWise').encode())
         print('Searching for target...')
         initialSearch()
-        sock.send(sendCommand('CounterClockWise').encode())
-
-
+#        sock.send(sendCommand('Stop').encode())
+        time.sleep(0.5)
