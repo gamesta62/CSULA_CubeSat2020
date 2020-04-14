@@ -7,12 +7,12 @@ import math
 import socket
 from os import sys, path
 
-#March 21, 2020: Added refindTarget as helper function to loop when CubeSat has to find the target after losing it from
-#initial search. Refind algorithm is done at the bottom of the main while loop when the target is lost
-#Removed commented commands and unused lines of code. Helper functions now return the counterthrust when loop ends instead of in the main loop
+#4/9/2020 Hopefully fixed problem between camera being used by HTML and navigation. Added a Try-Except to
+#ArucoSingleTracker in arucotracklib.py
 
 # Adding socket stuff---------------------
 
+#Change ip to server host ip
 sock = socket.socket()
 ip = '127.0.0.1' #connects to self
 #ip = '192.168.43.209'  # SimPlat ip
@@ -210,6 +210,7 @@ def video_feed():
 	return Response(generate(),
 		mimetype = "multipart/x-mixed-replace; boundary=frame")
 
+<<<<<<< HEAD
 time_0 = time.time()
 prevX = 0
 prevZ = 0
@@ -217,6 +218,15 @@ prevAngleX = 0
 
 def nav():
     firstSearch = True
+=======
+
+def nav():
+    firstSearch = True
+    time_0 = time.time()
+    prevX = 0
+    prevZ = 0
+    prevAngleX = 0
+>>>>>>> a3e1285fe9e81a579651a9547c7a912a768648e8
     while True:
 
         # (x,y, z) add test values

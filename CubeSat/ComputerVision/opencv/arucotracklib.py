@@ -76,21 +76,21 @@ class ArucoSingleTracker():
         global outputFrame
         
         while not self._kill:
-            
+
             #-- Read the camera frame
             ret, frame = self._cap.read()
             # frame = cv2.flip(frame,0)
             # ret = cv2.flip(ret,0)
-            
+
             #-- Convert in gray scale
             gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) #-- remember, OpenCV stores color images in Blue, Green, Red
 
             #-- Find all the aruco markers in the image
-            corners, ids, rejected = aruco.detectMarkers(image=gray, dictionary=self._aruco_dict, 
+            corners, ids, rejected = aruco.detectMarkers(image=gray, dictionary=self._aruco_dict,
                             parameters=self._parameters,
-                            cameraMatrix=self._camera_matrix, 
+                            cameraMatrix=self._camera_matrix,
                             distCoeff=self._camera_distortion)
-                            
+
             if not ids is None and self.id_to_find in ids[0]:
                 marker_found = True
                 #-- ret = [rvec, tvec, ?]
@@ -101,7 +101,7 @@ class ArucoSingleTracker():
 
                 #-- Unpack the output, get only the first
                 rvec, tvec = ret[0][0,0,:], ret[1][0,0,:]
-                
+
                 x = tvec[0]
                 y = tvec[1]
                 z = tvec[2]
@@ -116,12 +116,12 @@ class ArucoSingleTracker():
 
                 #-- Get the attitude in terms of euler 321 (Needs to be flipped first)
 
-            
+
 
                 #-- Now get Position and attitude f the camera respect to the marker
                 # pos_camera = -R_tc*np.matrix(tvec).T
                 # print( "Camera X = %4.0f  Y = %4.0f  Z = %4.0f ",(pos_camera[0], pos_camera[1], pos_camera[2]))
-                if verbose: 
+                if verbose:
                     # print ("Marker X = %4.0f  Y = %4.0f  Z = %4.0f  - fps = %4.0f"%(tvec[0], tvec[1], tvec[2],self.fps_detect))
                     return(marker_found, x, y, z)
 
@@ -131,19 +131,19 @@ class ArucoSingleTracker():
 
                     #-- Print the tag position in camera frame
                     str_position = "MARKER Position x=%4.0f  y=%4.0f  z=%4.0f"%(tvec[0], tvec[1], tvec[2])
-                    cv2.putText(frame, str_position, (0, 100), font, 1, (0, 255, 0), 2, cv2.LINE_AA)        
-                    
-      
+                    cv2.putText(frame, str_position, (0, 100), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+
 
                     # str_position = "CAMERA Position x=%4.0f  y=%4.0f  z=%4.0f"%(pos_camera[0], pos_camera[1], pos_camera[2])
                     # cv2.putText(frame, str_position, (0, 200), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
-              
+
 
             else:
-                if verbose: 
+                if verbose:
                     print ("Nothing detected - fps = %.0f"%self.fps_read)
-            
+
 
             if show_video:
                 #--- Display the frame
@@ -156,8 +156,8 @@ class ArucoSingleTracker():
                     self._cap.release()
                     cv2.destroyAllWindows()
                     break
-            
-            if not loop: 
+
+            if not loop:
                 return(marker_found, x, y, z)
 
     def get_frame(self):
@@ -181,4 +181,8 @@ if __name__ == "__main__":
     # aruco_tracker.track(verbose=False)
     print(aruco_tracker.track(verbose=True))
 
+<<<<<<< HEAD
     
+=======
+    
+>>>>>>> a3e1285fe9e81a579651a9547c7a912a768648e8
