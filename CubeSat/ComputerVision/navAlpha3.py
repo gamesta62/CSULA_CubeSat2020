@@ -1,7 +1,11 @@
-import socket
-from os import sys, path
+from flask import Response
+from flask import Flask
+from flask import render_template
+import threading
 import time
 import math
+import socket
+from os import sys, path
 
 #March 21, 2020: Added refindTarget as helper function to loop when CubeSat has to find the target after losing it from
 #initial search. Refind algorithm is done at the bottom of the main while loop when the target is lost
@@ -10,15 +14,15 @@ import math
 # Adding socket stuff---------------------
 
 sock = socket.socket()
-# ip = '127.0.0.1' #connects to self
-ip = '192.168.43.209'  # SimPlat ip
+ip = '127.0.0.1' #connects to self
+#ip = '192.168.43.209'  # SimPlat ip
 port = 12345
 sock.connect((ip, port))
 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
 # from opencv.lib_aruco_pose import *
-from arucotracklib import *
+from opencv.arucotracklib import *
 
 # --------------------------------------------------
 # -------------- FUNCTIONS
@@ -178,88 +182,128 @@ camera_distortion = np.loadtxt('cameraDistortion_raspi.txt', delimiter=',')
 aruco_tracker = ArucoSingleTracker(id_to_find=id_to_find, marker_size=marker_size, show_video=False,
                                    camera_matrix=camera_matrix, camera_distortion=camera_distortion)
 
+# initialize the output frame and a lock used to ensure thread-safe
+# exchanges of the output frames (useful for multiple browsers/tabs
+# are viewing tthe stream)
+outputFrame = None
+lock = threading.Lock()
+
+# initialize a flask object
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+	# return the rendered template
+	return render_template("index.html")
+
+def generate():
+    while True:
+        frame = aruco_tracker.get_frame()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+
+@app.route("/video_feed")
+def video_feed():
+	# return the response generated along with the specific media
+	# type (mime type)
+	return Response(generate(),
+		mimetype = "multipart/x-mixed-replace; boundary=frame")
+
 time_0 = time.time()
-firstSearch = True
 prevX = 0
 prevZ = 0
 prevAngleX = 0
 
-while True:
+def nav():
+    firstSearch = True
+    while True:
 
-    # (x,y, z) add test values
-    marker_found, x, y, z = aruco_tracker.track(loop=False)  # Note : XYZ  are all in cm
-    x = -x
+        # (x,y, z) add test values
+        marker_found, x, y, z = aruco_tracker.track(loop=False)  # Note : XYZ  are all in cm
+        x = -x
 
-    #print(f'taget found? {marker_found}')
-    if marker_found:
-        angle_x, angle_y = marker_position_to_angle(x, y, z)
+        #print(f'taget found? {marker_found}')
+        if marker_found:
+            angle_x, angle_y = marker_position_to_angle(x, y, z)
 
-        # print(f'X:{x} Y:{y}, Z:{z}, angleX:{angle_x}')
-        angle_x, angle_y = marker_position_to_angle(x, y, z)
-        withinCenter = checkCenterTreshhold(x)
-        withinDistance = checkDistanceThreshhold(z)
+            # print(f'X:{x} Y:{y}, Z:{z}, angleX:{angle_x}')
+            angle_x, angle_y = marker_position_to_angle(x, y, z)
+            withinCenter = checkCenterTreshhold(x)
+            withinDistance = checkDistanceThreshhold(z)
 
-        #sets the x, z, and angle x values into global variable in case of use when target is lost
-        prevX = x
-        prevZ = z
-        prevAngleX = angle_x
+            #sets the x, z, and angle x values into global variable in case of use when target is lost
+            prevX = x
+            prevZ = z
+            prevAngleX = angle_x
 
-        if withinCenter is False and withinDistance is False:
-            # if both checks fail meaning the distance is larger than the goal and the target is not within center threshold
-            print('outside of center threshold and distance threshold')
-            delayed = headerControl(angle_x)
-            # sends rotation command first, enters loop until target is recentered, then sends counterthrust            sock.send(sendCommand(delayed).encode())
-            headerHelper(delayed)
-            time.sleep(0.5)
-        elif withinCenter is True and withinDistance is False:
-            # the target is within center threshold but is outside distance goal
-            print('target within center threshold but outside distance goal')
-            delayed = velocityControl(z)
-            # sends forward thrust, loops until either target is off center or target is within distance, then sends backward thrust
-            velocityHelper(delayed)
-            time.sleep(0.5)
-        elif withinCenter is False and withinDistance is True:
-            # target is within distance goal but not within center threshold
-            print('target within distance goal but outside center threshold')
-            delayed = headerControl(angle_x)
-            # sends rotation command first, enters loop until target is recentered, then sends counterthrust
-            sock.send(sendCommand(delayed).encode())
-            headerHelper(delayed)
-            time.sleep(0.5)
-        elif withinDistance is True and withinCenter is True:
-            # to do: figure out what to do when everything is perfect
-            print('do nothing')
-
-        # --- COmmand to land
-        if z <= distanceGoal:
-            print(" -->>Target Distination Reached <<")
-
-    if marker_found is False:
-        if firstSearch is True:
-            #CubeSat performs initial search to find the target for the first time
-            sock.send(sendCommand('ClockWise').encode())
-            print('Searching for target...')
-            initialSearch()
-            firstSearch = False
-            time.sleep(0.5)
-        elif firstSearch is False:
-            #CubeSat has to find the target again after losing it. uses previous info to figure out where target was moving
-            withinCenter = checkCenterTreshhold(prevX)
-            withinDistance = checkDistanceThreshhold(prevZ)
-            if withinCenter is True and withinDistance is False:
-                #if the target was last seen in front of cubesat, move forward to find it again
-                delayed = velocityControl(prevZ)
-                sock.send(sendCommand(delayed).encode())
-                refindTarget(delayed)
+            if withinCenter is False and withinDistance is False:
+                # if both checks fail meaning the distance is larger than the goal and the target is not within center threshold
+                print('outside of center threshold and distance threshold')
+                delayed = headerControl(angle_x)
+                # sends rotation command first, enters loop until target is recentered, then sends counterthrust            sock.send(sendCommand(delayed).encode())
+                headerHelper(delayed)
+                time.sleep(0.5)
+            elif withinCenter is True and withinDistance is False:
+                # the target is within center threshold but is outside distance goal
+                print('target within center threshold but outside distance goal')
+                delayed = velocityControl(z)
+                # sends forward thrust, loops until either target is off center or target is within distance, then sends backward thrust
+                velocityHelper(delayed)
+                time.sleep(0.5)
             elif withinCenter is False and withinDistance is True:
-                #if the target was last seen moving left or right, rotate appropriate direction
-                delayed = headerControl(prevX)
+                # target is within distance goal but not within center threshold
+                print('target within distance goal but outside center threshold')
+                delayed = headerControl(angle_x)
+                # sends rotation command first, enters loop until target is recentered, then sends counterthrust
                 sock.send(sendCommand(delayed).encode())
-                refindTarget(delayed)
+                headerHelper(delayed)
                 time.sleep(0.5)
-            elif withinCenter is False and withinDistance is False:
-                #if target wasn't within distance and was seen moving left or right, rotate appropriately
-                delayed = headerControl(prevX)
-                sock.send(sendCommand(delayed).encode())
-                refindTarget(delayed)
+            elif withinDistance is True and withinCenter is True:
+                # to do: figure out what to do when everything is perfect
+                print('do nothing')
+
+            # --- COmmand to land
+            if z <= distanceGoal:
+                print(" -->>Target Distination Reached <<")
+
+        if marker_found is False:
+            if firstSearch is True:
+                #CubeSat performs initial search to find the target for the first time
+                sock.send(sendCommand('ClockWise').encode())
+                print('Searching for target...')
+                initialSearch()
+                firstSearch = False
                 time.sleep(0.5)
+            elif firstSearch is False:
+                #CubeSat has to find the target again after losing it. uses previous info to figure out where target was moving
+                withinCenter = checkCenterTreshhold(prevX)
+                withinDistance = checkDistanceThreshhold(prevZ)
+                if withinCenter is True and withinDistance is False:
+                    #if the target was last seen in front of cubesat, move forward to find it again
+                    delayed = velocityControl(prevZ)
+                    sock.send(sendCommand(delayed).encode())
+                    refindTarget(delayed)
+                elif withinCenter is False and withinDistance is True:
+                    #if the target was last seen moving left or right, rotate appropriate direction
+                    delayed = headerControl(prevX)
+                    sock.send(sendCommand(delayed).encode())
+                    refindTarget(delayed)
+                    time.sleep(0.5)
+                elif withinCenter is False and withinDistance is False:
+                    #if target wasn't within distance and was seen moving left or right, rotate appropriately
+                    delayed = headerControl(prevX)
+                    sock.send(sendCommand(delayed).encode())
+                    refindTarget(delayed)
+                    time.sleep(0.5)
+
+def startFlask():
+    # start the flask app
+    app.run(host='127.0.0.1', port='8000', debug=True,
+            threaded=True, use_reloader=False)
+
+if __name__ == '__main__':
+    t = threading.Thread(name='background', target=startFlask)
+    t1 = threading.Thread(name='foreground', target=nav)
+    t.start()
+    t1.start()

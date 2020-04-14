@@ -3,6 +3,8 @@ import cv2
 import cv2.aruco as aruco
 import sys, time, math
 
+outputFrame = None
+
 class ArucoSingleTracker():
     def __init__(self,
                 id_to_find,
@@ -63,13 +65,15 @@ class ArucoSingleTracker():
     # Y  : up/down from camera
     # Z : distance from camera 
     # Returns(boolean,intX,intY,intZ)
-    def track(self, loop=True, verbose=False, show_video=True):
+    def track(self, loop=True, verbose=False, show_video=False):
         
         self._kill = False
         if show_video is None: show_video = self._show_video
         
         marker_found = False
         x = y = z = 0
+
+        global outputFrame
         
         while not self._kill:
             
@@ -143,7 +147,7 @@ class ArucoSingleTracker():
 
             if show_video:
                 #--- Display the frame
-                frame = cv2.flip(frame,0)
+                frame = cv2.flip(frame,1)
                 cv2.imshow('frame', frame)
 
                 #--- use 'q' to quit
@@ -155,7 +159,11 @@ class ArucoSingleTracker():
             
             if not loop: 
                 return(marker_found, x, y, z)
-            
+
+    def get_frame(self):
+        success, image = self._cap.read()
+        ret, jpeg = cv2.imencode('.jpg', image)
+        return jpeg.tobytes()
 
 # for testing purposes only 
 if __name__ == "__main__":
@@ -169,7 +177,8 @@ if __name__ == "__main__":
     camera_matrix   = np.loadtxt(calib_path+'cameraMatrix_raspi.txt', delimiter=',')
     camera_distortion   = np.loadtxt(calib_path+'cameraDistortion_raspi.txt', delimiter=',')                                      
     aruco_tracker = ArucoSingleTracker(id_to_find=24, marker_size=10, show_video=False, camera_matrix=camera_matrix, camera_distortion=camera_distortion)
-   
+
     # aruco_tracker.track(verbose=False)
     print(aruco_tracker.track(verbose=True))
+
     

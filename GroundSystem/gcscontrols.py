@@ -11,15 +11,17 @@ app = Flask(__name__)
 
 # s = socket.socket()
 # s.connect(('127.0.0.1',12345))
+s = socket.socket()
+s.connect(('127.0.0.1',12345))
 
 @app.route("/", methods=['GET', 'POST'])
 
 
 def index():
     print(request.method)
-    s = socket.socket()
-    s.connect(('127.0.0.1',12345))
-    # str = input("S: ")
+    # s = socket.socket()
+    # s.connect(('127.0.0.1',12345))
+    # # str = input("S: ")
     # s.send(str.encode());
 
   
@@ -31,33 +33,50 @@ def index():
                 # pass
             # add bittarray to send
             print("Forward")
-        elif  request.form.get('Reverse') == 'Reverse':
+        if  request.form.get('Reverse') == 'Reverse':
             # pass # do something else
             message = "reverse "
             s.send(message.encode());
             print("Reverse")
-        elif  request.form.get('Left') == 'Left':
+        if  request.form.get('Left') == 'Left':
             # pass # do something else
-           print("Left")
+            message = "left"
+            s.send(message.encode())
+            print("Left")
 
-        elif  request.form.get('Right') == 'Right':
+        if  request.form.get('Right') == 'Right':
             # pass # do something else
-           print("Right")
-        elif  request.form.get('Stop') == 'Stop':
+            message = "right"
+            s.send(message.encode());
+
+            print("Right")
+        if  request.form.get('Stop') == 'Stop':
             # pass # do something else
-           print("Stop")
-        elif  request.form.get('CounterClock') == 'CounterClock':
+            message = 'stop'
+            s.send(message.encode())
+
+            print("Stop")
+        if  request.form.get('counterclock') == 'counterclock':
             # pass # do something else
-           print("CounterClock")
-        elif  request.form.get('ClockWise') == 'ClockWise':
+            message = 'counterclock'
+            s.send(message.encode());
+
+        if  request.form.get('ClockWise') == 'ClockWise':
             # pass # do something else
-           print("ClockWise")
-        elif  request.form.get('StartDetectionTrack') == 'StartDetectionTrack':
+            message = 'clockwise'
+            s.send(message.encode());
+
+            print("ClockWise")
+        if  request.form.get('StartDetectionTrack') == 'StartDetectionTrack':
             # pass # do something else
-           print("StartDetectionTrack")
+            message = 'startDetection'
+            s.send(message.encode());
+
+            print("StartDetectionTrack")
         else:
                 # pass # unknown
-            return render_template("index.html")
+                print('nothing')
+            # return render_template("index.html")
     elif request.method == 'GET':
             # return render_template("index.html")
         print("No Post Back Call")
