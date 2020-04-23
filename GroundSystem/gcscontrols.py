@@ -9,10 +9,23 @@ app = Flask(__name__)
 # 
 
 
+thrustDic = {'Stop': '00000000',
+             'Left': '01100000',
+             'Right': '00000110',
+             'Forward': '00011000',
+             'Backward': '10000001',
+             'UpperRightDiagonal': '00011110',
+             'UpperLeftDiagonal': '01111000',
+             'BottomRightDiagonal': '10000111',
+             'CounterClockWise': '01010101',
+             'ClockWise': '10101010'}
+
+
 # s = socket.socket()
 # s.connect(('127.0.0.1',12345))
+ipSim = '192.168.1.12'
 s = socket.socket()
-s.connect(('127.0.0.1',12345))
+s.connect((ipSim,12345))
 
 @app.route("/", methods=['GET', 'POST'])
 
@@ -27,7 +40,7 @@ def index():
   
     if request.method == 'POST':
         if request.form.get('Forward') == 'Forward':
-            message = "forward "
+            message = '00011000'
             s.send(message.encode());
 
                 # pass
@@ -35,35 +48,35 @@ def index():
             print("Forward")
         if  request.form.get('Reverse') == 'Reverse':
             # pass # do something else
-            message = "reverse "
+            message = '10000001'
             s.send(message.encode());
             print("Reverse")
         if  request.form.get('Left') == 'Left':
             # pass # do something else
-            message = "left"
+            message = '01100000'
             s.send(message.encode())
             print("Left")
 
         if  request.form.get('Right') == 'Right':
             # pass # do something else
-            message = "right"
+            message = '00000110'
             s.send(message.encode());
 
             print("Right")
         if  request.form.get('Stop') == 'Stop':
             # pass # do something else
-            message = 'stop'
+            message = '00000000'
             s.send(message.encode())
 
             print("Stop")
         if  request.form.get('counterclock') == 'counterclock':
             # pass # do something else
-            message = 'counterclock'
+            message = '01010101'
             s.send(message.encode());
 
         if  request.form.get('ClockWise') == 'ClockWise':
             # pass # do something else
-            message = 'clockwise'
+            message = '10101010'
             s.send(message.encode());
 
             print("ClockWise")
