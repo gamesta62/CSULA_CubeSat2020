@@ -210,15 +210,6 @@ def video_feed():
 	return Response(generate(),
 		mimetype = "multipart/x-mixed-replace; boundary=frame")
 
-<<<<<<< HEAD
-time_0 = time.time()
-prevX = 0
-prevZ = 0
-prevAngleX = 0
-
-def nav():
-    firstSearch = True
-=======
 
 def nav():
     firstSearch = True
@@ -226,7 +217,6 @@ def nav():
     prevX = 0
     prevZ = 0
     prevAngleX = 0
->>>>>>> a3e1285fe9e81a579651a9547c7a912a768648e8
     while True:
 
         # (x,y, z) add test values
