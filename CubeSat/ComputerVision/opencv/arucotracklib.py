@@ -180,9 +180,3 @@ if __name__ == "__main__":
 
     # aruco_tracker.track(verbose=False)
     print(aruco_tracker.track(verbose=True))
-
-<<<<<<< HEAD
-    
-=======
-    
->>>>>>> a3e1285fe9e81a579651a9547c7a912a768648e8
