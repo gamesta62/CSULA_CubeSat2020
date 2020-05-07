@@ -1,4 +1,4 @@
-1. Cubesat contains both the navigation software (navAlpha3) and arucotracklib.py .
+1. Cubesat contains both the navigation software (navAlpha3.py) and arucotracklib.py .(both are located under the ComputerVision folder)
 
 2. In order to run navigation, be sure that the SimPlat server is running first, as well as know the IP address for SimPlat. Make sure to make the changes to the IP address if necessary to line in line 17 , 18 in navAlpha3.py.
 
