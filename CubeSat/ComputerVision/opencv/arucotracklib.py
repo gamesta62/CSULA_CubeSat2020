@@ -110,16 +110,7 @@ class ArucoSingleTracker():
                 aruco.drawDetectedMarkers(frame, corners)
                 aruco.drawAxis(frame, self._camera_matrix, self._camera_distortion, rvec, tvec, 10)
 
-                #-- Obtain the rotation matrix tag->camera
-                # R_ct    = np.matrix(cv2.Rodrigues(rvec)[0])
-                # R_tc    = R_ct.T
-
-                #-- Get the attitude in terms of euler 321 (Needs to be flipped first)
-
-
-
-                #-- Now get Position and attitude f the camera respect to the marker
-                # pos_camera = -R_tc*np.matrix(tvec).T
+                
                 # print( "Camera X = %4.0f  Y = %4.0f  Z = %4.0f ",(pos_camera[0], pos_camera[1], pos_camera[2]))
                 if verbose:
                     # print ("Marker X = %4.0f  Y = %4.0f  Z = %4.0f  - fps = %4.0f"%(tvec[0], tvec[1], tvec[2],self.fps_detect))
