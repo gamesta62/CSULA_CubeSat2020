@@ -2,13 +2,8 @@ from flask import Response
 from flask import Flask
 from flask import render_template
 import threading
-import time
-import math
 import socket
 from os import sys, path
-
-#4/9/2020 Hopefully fixed problem between camera being used by HTML and navigation. Added a Try-Except to
-#ArucoSingleTracker in arucotracklib.py
 
 # Adding socket stuff---------------------
 
@@ -31,15 +26,7 @@ from opencv.arucotracklib import *
 # Goal of this navigation is to have CubeSat Rotate a degree/ angle; with the goal of
 # having the target aligned in its center before thrusting toward target.
 
-# ---HEADING CONTROLS
-# By knowing how long SimPlat takes to rotate a full 360 we can computer the amount of
-# time it takes to move N degrees.
-# Now that we have time it takes to rotate a certain degree/angle, we can use this to send a
-# rotate command for X amount of seconds before sending counter thrusting to stop rotation .
-# This will line us up with the target in the center of our screen.
-
-# XYZ -> Angle-> Rotate(angle) ->computeRotateTime(angel) ->startRotate(seconds )
-
+#dictionary to convert commands to the appropriate thruster commands that simplat will receive from CubeSat
 thrustDic = {'Stop': '00000000',
              'Left': '01100000',
              'Right': '00000110',
@@ -51,6 +38,7 @@ thrustDic = {'Stop': '00000000',
              'CounterClockWise': '01010101',
              'ClockWise': '10101010'}
 
+#dictionary of the appropriate counter thrust commands for each thrust
 reverseDic = {'Stop': 'Stop',
               'Left': 'Right',
               'Right': 'Left',
@@ -59,9 +47,10 @@ reverseDic = {'Stop': 'Stop',
               'CounterClockWise': 'ClockWise',
               'ClockWise': 'CounterClockWise'}
 
+#This is the distance CubeSat will maintain between itself and the target. Measured in cm
 distanceGoal = 30.0
 
-
+#Function used to return the x and y angle the target is relative in the camera frame
 def marker_position_to_angle(x, y, z):
     angle_x = math.degrees(math.atan2(x, z))
     angle_y = math.degrees(math.atan2(y, z))
@@ -70,7 +59,7 @@ def marker_position_to_angle(x, y, z):
 
 
 def initialSearch():
-    #loops until target is found for first time, then sends counterthrust
+    #loops until target is found for first time, then sends counterthrust to simplat and ends the loop, returning back to nav()
     while True:
         marker_found, x, y, z = aruco_tracker.track(loop=False)
         if marker_found is True:
@@ -85,27 +74,13 @@ def checkCenterTreshhold(currentX):
     # change min and max value as neccessary to change threshold
     minX = -20.0
     maxX = 20.0
-    if currentX < minX or currentX > maxX:
-        return False
-    return True
+    return False if currentX < minX or currentX > maxX else True
 
 
 def checkDistanceThreshhold(currentZ):
     # function takes in current z value from camera and checks to see if the distance between cubesat and the target is within the goal
-    # if the distance is too great, return false. if the distance is within the goal, return true
-    if currentZ > distanceGoal:
-        return False
-    return True
-
-#refindTarget takes in last command that was executed to generate counterthrust command when target is found again
-def refindTarget(command):
-    #loops until the target is found again, then sends a counterthrust command
-    while True:
-        marker_found, x, y, z = aruco_tracker.track(loop=False)
-        if marker_found is True:
-            sock.send(sendCommand(reverseCommand(command)).encode())
-            break
-    return
+    # if the distance is too great or they are too close, return false. if the distance is within the goal, return true
+    return False if currentZ > distanceGoal or currentZ < distanceGoal - 5 else True
 
 def headerControl(degree):
     # if the degree is negative, that means the target is to the left of CubeSat so a clockwise rotation is neccessary,
@@ -117,32 +92,30 @@ def headerControl(degree):
     else:
         thrustCommand = 'Stop'
 
-    return thrustCommand
-
-
-def headerHelper(command):
-    # recursion function to loop until the threshold is satisfied
-    while True:
+    # while loop to keep receiving data from OpenCV to get target location. loop ends when cubesat is within threshold
+    # or it ends when the target is no longer within camera view
+    marker_found, x, y, z = aruco_tracker.track(loop=False)
+    while marker_found:
         marker_found, x, y, z = aruco_tracker.track(loop=False)
         checker = checkCenterTreshhold(x)
         if checker is True:
-            sock.send(sendCommand(reverseCommand(command)).encode())
+            sock.send(sendCommand(reverseCommand(thrustCommand)).encode())
             break
     return
 
 
+
 def velocityControl(dist):
+    #depending on the distance received, cubesat will issue either a forward or backward thrust
     if dist > distanceGoal:
-        delayCommand = 'Forward'
-    if dist <= distanceGoal:
-        delayCommand = 'Backward'
+        command = 'Forward'
+    if dist <= distanceGoal - 5: #5 can be any number but the idea is that this means the distance between target and cubesat is closer than distancegoal
+        command = 'Backward'
 
-    return delayCommand
-
-
-def velocityHelper(command):
-    # recursion function that keeps forward command going until either target is off center or cubesat is within distance
-    while True:
+    # while loop that keeps forward command going until either target is off center or cubesat is within distance
+    # loop may also end if the target is no longer within frame
+    marker_found, x, y, z = aruco_tracker.track(loop=False)
+    while marker_found:
         marker_found, x, y, z = aruco_tracker.track(loop=False)
         checker = checkDistanceThreshhold(z)
         if checker is True:
@@ -150,11 +123,9 @@ def velocityHelper(command):
             break
     return
 
-
+#simple functions to get the approrpiate thruster command from the dictionary to send to simplat
 def sendCommand(command):
-    print(f'Command: {command}')
     return thrustDic[command]
-
 
 def reverseCommand(command):
     return reverseDic[command]
@@ -182,9 +153,7 @@ camera_distortion = np.loadtxt('cameraDistortion_raspi.txt', delimiter=',')
 aruco_tracker = ArucoSingleTracker(id_to_find=id_to_find, marker_size=marker_size, show_video=False,
                                    camera_matrix=camera_matrix, camera_distortion=camera_distortion)
 
-# initialize the output frame and a lock used to ensure thread-safe
-# exchanges of the output frames (useful for multiple browsers/tabs
-# are viewing tthe stream)
+# lines 157 - 179 are lines of code to help display cubesat's camera feed to an html page using flask
 outputFrame = None
 lock = threading.Lock()
 
@@ -202,7 +171,6 @@ def generate():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
-
 @app.route("/video_feed")
 def video_feed():
 	# return the response generated along with the specific media
@@ -210,64 +178,56 @@ def video_feed():
 	return Response(generate(),
 		mimetype = "multipart/x-mixed-replace; boundary=frame")
 
-
 def nav():
+    #firstSearch is set to true on startup to let the software know it needs to perform the initial search
     firstSearch = True
-    time_0 = time.time()
+    #prevX, prevZ, and prevAngleX are values received from OpenCV from previous iteration of the main loop
     prevX = 0
     prevZ = 0
     prevAngleX = 0
+
+    #there are sleep commands for 0.5 secs to allow the camera to refocus if it needs to
     while True:
 
         # (x,y, z) add test values
         marker_found, x, y, z = aruco_tracker.track(loop=False)  # Note : XYZ  are all in cm
         x = -x
 
-        #print(f'taget found? {marker_found}')
         if marker_found:
             angle_x, angle_y = marker_position_to_angle(x, y, z)
 
-            # print(f'X:{x} Y:{y}, Z:{z}, angleX:{angle_x}')
             angle_x, angle_y = marker_position_to_angle(x, y, z)
             withinCenter = checkCenterTreshhold(x)
             withinDistance = checkDistanceThreshhold(z)
 
-            #sets the x, z, and angle x values into global variable in case of use when target is lost
+            #sets the x, angle x, and z values into variables in case the target was lost
             prevX = x
             prevZ = z
             prevAngleX = angle_x
 
-            if withinCenter is False and withinDistance is False:
+            if not withinCenter and not withinDistance:
                 # if both checks fail meaning the distance is larger than the goal and the target is not within center threshold
                 print('outside of center threshold and distance threshold')
-                delayed = headerControl(angle_x)
-                # sends rotation command first, enters loop until target is recentered, then sends counterthrust            sock.send(sendCommand(delayed).encode())
-                headerHelper(delayed)
+                headerControl(angle_x)
                 time.sleep(0.5)
-            elif withinCenter is True and withinDistance is False:
+            elif withinCenter and not withinDistance:
                 # the target is within center threshold but is outside distance goal
                 print('target within center threshold but outside distance goal')
-                delayed = velocityControl(z)
-                # sends forward thrust, loops until either target is off center or target is within distance, then sends backward thrust
-                velocityHelper(delayed)
+                velocityControl(z)
                 time.sleep(0.5)
-            elif withinCenter is False and withinDistance is True:
+            elif not withinCenter and withinDistance:
                 # target is within distance goal but not within center threshold
                 print('target within distance goal but outside center threshold')
-                delayed = headerControl(angle_x)
-                # sends rotation command first, enters loop until target is recentered, then sends counterthrust
-                sock.send(sendCommand(delayed).encode())
-                headerHelper(delayed)
+                headerControl(angle_x)
                 time.sleep(0.5)
-            elif withinDistance is True and withinCenter is True:
-                # to do: figure out what to do when everything is perfect
-                print('do nothing')
 
             # --- COmmand to land
             if z <= distanceGoal:
                 print(" -->>Target Distination Reached <<")
 
+        #if the marker is not within the camera frame
         if marker_found is False:
+            #if cubesat still needs to perform initialsearch
             if firstSearch is True:
                 #CubeSat performs initial search to find the target for the first time
                 sock.send(sendCommand('ClockWise').encode())
@@ -275,27 +235,53 @@ def nav():
                 initialSearch()
                 firstSearch = False
                 time.sleep(0.5)
+            #if Cubesat already has found the target before and needs to relocate it
             elif firstSearch is False:
                 #CubeSat has to find the target again after losing it. uses previous info to figure out where target was moving
                 withinCenter = checkCenterTreshhold(prevX)
                 withinDistance = checkDistanceThreshhold(prevZ)
-                if withinCenter is True and withinDistance is False:
-                    #if the target was last seen in front of cubesat, move forward to find it again
-                    delayed = velocityControl(prevZ)
-                    sock.send(sendCommand(delayed).encode())
-                    refindTarget(delayed)
-                elif withinCenter is False and withinDistance is True:
-                    #if the target was last seen moving left or right, rotate appropriate direction
-                    delayed = headerControl(prevX)
-                    sock.send(sendCommand(delayed).encode())
-                    refindTarget(delayed)
-                    time.sleep(0.5)
-                elif withinCenter is False and withinDistance is False:
-                    #if target wasn't within distance and was seen moving left or right, rotate appropriately
-                    delayed = headerControl(prevX)
-                    sock.send(sendCommand(delayed).encode())
-                    refindTarget(delayed)
-                    time.sleep(0.5)
+                if not withinDistance:
+                    #the target wasn't within distance goal before cubesat lost it
+                    if prevZ > distanceGoal:
+                        #if the target was last seen moving away i.e. too far for the camera, cubesat will be at rest initially,
+                        #so try doubling cubesat's normal speed by sending two forward thrust commands to keep up with target
+                        sock.send(sendCommand('Forward').encode())
+                        sock.send(sendCommand('Forward').encode())
+                        while not marker_found:
+                            # while loop to keep checking the camera frame to see if target is found again
+                            marker_found, x, y, z = aruco_tracker.track(loop=False)
+                            if marker_found:
+                                sock.send(sendCommand('Backward').encode())
+                                sock.send(sendCommand('Backward').encode())
+                                break
+                    elif prevZ < distanceGoal:
+                        #if the target was seen getting closer to cubesat before being lost, assume that the target is too close
+                        sock.send(sendCommand('Backward').encode())
+                        while not marker_found:
+                            # while loop to keep checking the camera frame to see if target is found again
+                            marker_found, x, y, z = aruco_tracker.track(loop=False)
+                            if marker_found:
+                                sock.send(sendCommand('Forward').encode())
+                                break
+                elif not withinCenter:
+                    #target wasnt near center of camera view when cubesat lost it
+                    #look at previous data to see whether target was last seen on left or right side of camera view
+                    #try doubling rotation speed from rest to keep up with target
+                    if prevAngleX < 0:
+                        command = 'ClockWise'
+                    elif prevAngleX > 0:
+                        command = 'CounterClockWise'
+                    sock.send(sendCommand(command).encode())
+                    sock.send(sendCommand(command).encode())
+                    while not marker_found:
+                        #while loop to keep checking the camera frame to see if target is found again
+                        marker_found, x, y, z = aruco_tracker.track(loop=False)
+                        if marker_found:
+                            #stop the rotation with counterthrust
+                            sock.send(sendCommand(reverseCommand(command)).encode())
+                            sock.send(sendCommand(reverseCommand(command)).encode())
+                            break
+
 
 def startFlask():
     # start the flask app
